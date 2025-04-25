@@ -1,0 +1,14 @@
+{
+  "name": "cse340-practice-campbell",
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon --env-file=.env server.js",
+        "start": "node --env-file=.env server.js"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
