@@ -49,6 +49,44 @@ app.get('/contact', (req, res) => {
 
 
 
+// Test route that deliberately throws an error
+// Test route that explicitly creates and forwards an error
+app.get('/manual-error', (req, res, next) => {
+    const err = new Error('This is a manually triggered error');
+    err.status = 500;
+    next(err); // Forward to the global error handler
+});
+
+/**
+ * Error Handling Middleware
+ */
+ 
+// Catch-all middleware for unmatched routes (404)
+app.use((req, res, next) => {
+    const err = new Error('Page Not Found');
+    err.status = 404;
+    next(err); // Forward to the global error handler
+});
+
+// Global error handler middleware
+app.use((err, req, res, next) => {
+    // Log the error for debugging
+    console.error(err.stack);
+ 
+    // Set default status and determine error type
+    const status = err.status || 500;
+    const context = {
+        title: status === 404 ? 'Page Not Found' : 'Internal Server Error',
+        error: err.message,
+        stack: err.stack,
+        NODE_ENV,
+        PORT
+    };
+ 
+    // Render the appropriate template based on status code
+    res.status(status).render(`errors/${status === 404 ? '404' : '500'}`, context);
+});
+
  
 // Start the server and listen on the specified port
 if (NODE_ENV.includes('dev')) {
