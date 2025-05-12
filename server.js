@@ -17,6 +17,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.set('views', path.join(__dirname, 'src', 'views'));
 app.set('view engine', 'ejs');
 
+// Middleware to add current year to res.locals
+app.use((req, res, next) => {
+    // Get the current year for copyright notice
+    res.locals.currentYear = new Date().getFullYear();
+    next();
+});
+
 // Define a route handler for the root URL ('/')
 app.get('/', (req, res) => {
     const title = 'Home Page';
@@ -47,8 +54,28 @@ app.get('/contact', (req, res) => {
     res.render('index', { title, content, NODE_ENV, PORT });
 });
 
+// Updated route to use EJS template
+app.get('/explore/:category/:id', (req, res) => {
+    // Destructure the parameters
+    const { category, id } = req.params;
+ 
+    // Log the params to the console for debugging
+    console.log('Route Parameters:', req.params);
 
-
+     // Get query parameters (optional)
+    const { sort = 'default', filter = 'none' } = req.query;
+ 
+    // Log all parameters for debugging
+    console.log('Route Parameters:', req.params);
+    console.log('Query Parameters:', req.query);
+ 
+ 
+    // Set the title for the page
+    const title = `Exploring ${category}`;
+ 
+    // Render the EJS template with the parameters
+    res.render('explore', { title, category, id, sort, filter, NODE_ENV });
+});
 // Test route that deliberately throws an error
 // Test route that explicitly creates and forwards an error
 app.get('/manual-error', (req, res, next) => {
