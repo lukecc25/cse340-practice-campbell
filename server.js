@@ -105,7 +105,7 @@ app.use((req, res, next) => {
 // Define a route handler for the root URL ('/')
 app.get('/', (req, res) => {
     const title = 'Home Page';
-    res.render('index', { title, NODE_ENV, PORT });
+    res.render('index', { title, NODE_ENV });
 });
 app.get('/about', (req, res) => {
     const title = 'About';
