@@ -24,36 +24,94 @@ app.use((req, res, next) => {
     next();
 });
 
+// Global middleware to set a custom header
+app.use((req, res, next) => {
+    res.setHeader('X-Powered-By', 'Express Middleware Tutorial');
+    next(); // Don't forget this or your request will hang!
+});
+
+// Global middleware to measure request processing time
+app.use((req, res, next) => {
+    // Record the time when the request started
+    const start = Date.now();
+ 
+    /**
+     * The `res` object has built-in event listeners we can use to trigger
+     * actions at different points in the request/response lifecycle.
+     * 
+     * We will use the 'finish' event to detect when the response has been
+     * sent to the client, and then calculate the time taken to process
+     * the entire request.
+     */
+    res.on('finish', () => {
+        // Calculate how much time has passed since the request started
+        const end = Date.now();
+        const processingTime = end - start;
+ 
+        // Log the results to the console
+        console.log(`${req.method} ${req.url} - Processing time: ${processingTime}ms`);
+    });
+ 
+    // Don't forget to call next() to continue to the next middleware
+    next();
+});
+
+const products = [
+    {
+        id: 1,
+        name: "Kindle E-Reader",
+        description: "Lightweight e-reader with a glare-free display and weeks of battery life.",
+        price: 149.99,
+        image: "https://picsum.photos/id/367/800/600"
+    },
+    {
+        id: 2,
+        name: "Vintage Film Camera",
+        description: "Capture timeless moments with this classic vintage film camera, perfect for photography enthusiasts.",
+        price: 199.99,
+        image: "https://picsum.photos/id/250/800/600"
+    }
+];
+ 
+// Middleware to validate display parameter
+const validateDisplayMode = (req, res, next) => {
+    const { display } = req.params;
+    if (display !== 'grid' && display !== 'details') {
+        const error = new Error('Invalid display mode: must be either "grid" or "details".');
+        next(error); // Pass control to the error-handling middleware
+    }
+    next(); // Pass control to the next middleware or route
+};
+
+// Middleware to add a timestamp to res.locals for all views
+app.use((req, res, next) => {
+    // Create a formatted timestamp like "May 8, 2025 at 3:42 PM"
+    const now = new Date();
+    const options = { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    };
+ 
+    // Adding to res.locals makes this available to all views automatically
+    res.locals.timestamp = now.toLocaleDateString('en-US', options);
+ 
+    next();
+});
+
 // Define a route handler for the root URL ('/')
 app.get('/', (req, res) => {
     const title = 'Home Page';
-    const content = '<h1>Welcome to the Home Page</h1><p>This is the main content of the home page.</p>';
-    res.render('index', { title, content, NODE_ENV, PORT });
+    res.render('index', { title, NODE_ENV, PORT });
 });
 app.get('/about', (req, res) => {
     const title = 'About';
-    const content = `
-    <h1>About Me</h1>
-    <p>Hello! I’m Luke a student trying to be a web developer. I'm learning to build clean, user-friendly websites.</p>
-    <img src="/images/me-byui.webp" alt="My photo" style="max-width: 200px;">
-`;
-    res.render('index', { title, content, NODE_ENV, PORT });
+    res.render('about', { title, NODE_ENV });
 });
  
-app.get('/contact', (req, res) => {
-    const title = 'Contact';
-    const content = `
-    <h1>Contact Me</h1>
-    <form action="/submit" method="POST">
-        <input type="text" name="name" placeholder="Name"><br>
-        <input type="email" name="email" placeholder="Email"><br>
-        <textarea name="message" placeholder="Message"></textarea><br>
-        <input type="submit" value="Submit">
-    </form>
-`;
-    res.render('index', { title, content, NODE_ENV, PORT });
-});
-
 // Updated route to use EJS template
 app.get('/explore/:category/:id', (req, res) => {
     // Destructure the parameters
@@ -76,6 +134,19 @@ app.get('/explore/:category/:id', (req, res) => {
     // Render the EJS template with the parameters
     res.render('explore', { title, category, id, sort, filter, NODE_ENV });
 });
+
+// Products page route with display mode validation
+app.get('/products/:display', validateDisplayMode, (req, res) => {
+    const title = "Our Products";
+    const { display } = req.params;
+    res.render('products', { title, products, display, NODE_ENV  });
+});
+ 
+// Default products route (redirects to grid view)
+app.get('/products', (req, res) => {
+    res.redirect('/products/grid');
+});
+
 // Test route that deliberately throws an error
 // Test route that explicitly creates and forwards an error
 app.get('/manual-error', (req, res, next) => {
