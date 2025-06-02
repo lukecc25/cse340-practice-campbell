@@ -1,0 +1,12 @@
+<%- include('partials/header') %>
+<main>
+    <h1>Test Page</h1>
+    <form method="post" action="/test">
+        Name:<input type="text" name="name" required>
+        <br>
+        Email: <input type="email" name="email" required>
+        <br>
+        <button type="submit">Submit</button>
+    </form>
+</main>
+<%- include('partials/footer') %>
