@@ -1,11 +1,11 @@
 <%- include('partials/header') %>
 <main>
     <h1><%= title %></h1>
- 
+
     <div class="category-info">
         <p><%= categoryData.description %></p>
     </div>
- 
+
     <% if (hasSubcategories) { %>
         <div class="subcategory-filters">
             <h2>Shop by Category</h2>
@@ -18,7 +18,7 @@
             </div>
         </div>
     <% } %>
- 
+
     <% if (hasProducts) { %>
         <div class="products-container <%= display === 'grid' ? 'grid-view' : 'details-view' %>">
             <% products.forEach((product) => { %>
@@ -34,7 +34,7 @@
                 </div>
             <% }); %>
         </div>
- 
+
         <div class="view-toggle">
             <a href="?display=grid" class="<%= display === 'grid' ? 'active' : '' %>">Grid View</a> | 
             <a href="?display=details" class="<%= display === 'details' ? 'active' : '' %>">Details View</a>

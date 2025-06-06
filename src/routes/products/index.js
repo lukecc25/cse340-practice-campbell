@@ -1,62 +1,72 @@
 import { Router } from 'express';
-import { 
-    getNavigationCategories, 
-    getCategoryBySlug, 
-    getChildCategories,
-    getProductsByCategory, 
-    getRandomNavigationCategory 
+import {
+  getNavigationCategories,
+  getCategoryBySlug,
+  getChildCategories,
+  getProductsByCategory,
+  getRandomNavigationCategory
 } from '../../models/categories/index.js';
- 
+
 const router = Router();
- 
+
 /**
- * Route for /products - redirects to a random navigation category
- * Now uses database to select a random parent category instead of hardcoded data
+ * /products - redirect to a random parent category.
  */
 router.get('/', async (req, res, next) => {
+  try {
     const randomCategory = await getRandomNavigationCategory();
- 
+
     if (!randomCategory) {
-        const error = new Error('No categories available');
-        error.status = 404;
-        return next(error);
+      const error = new Error('No categories available');
+      error.status = 404;
+      return next(error);
     }
- 
+
     res.redirect(`/products/${randomCategory.slug}`);
+  } catch (err) {
+    next(err);
+  }
 });
- 
+
 /**
- * Route for viewing a category and its products/subcategories
- * Updated to use database queries instead of static data
+ * /products/:category - show a category and its subcategories/products.
  */
 router.get('/:category', async (req, res, next) => {
+  try {
     const { category } = req.params;
     const { display = 'grid' } = req.query;
- 
-    // Get category from database
+
     const categoryData = await getCategoryBySlug(category);
- 
-    // Check if category exists
     if (!categoryData) {
-        const error = new Error('Category Not Found');
-        error.status = 404;
-        return next(error);
+      const error = new Error('Category Not Found');
+      error.status = 404;
+      return next(error);
     }
- 
-    // Get subcategories and products for this category
+
     const subcategories = await getChildCategories(categoryData.id);
     const products = await getProductsByCategory(categoryData.id);
- 
-    // Render the products template
+
     res.render('products', {
-        title: `Exploring ${categoryData.name}`,
-        display,
-        categoryData,
-        subcategories,
-        products,
-        hasProducts: products.length > 0,
-        hasSubcategories: subcategories.length > 0
+      title: `Exploring ${categoryData.name}`,
+      display,
+      categoryData,
+      subcategories,
+      products,
+      hasProducts: products.length > 0,
+      hasSubcategories: subcategories.length > 0
     });
+  } catch (err) {
+    next(err);
+  }
 });
- 
+
+/**
+ * /products/:category/:id - redirect to category view.
+ * This is useful if someone tries to go directly to a product without a details page.
+ */
+router.get('/:category/:id', (req, res) => {
+  const { category } = req.params;
+  res.redirect(`/products/${category}`);
+});
+
 export default router;

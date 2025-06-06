@@ -1,5 +1,5 @@
 html, body {
-    background-color: lightblue;
+    background-color: rgb(251, 215, 215);
 }
 
 .products-container {
@@ -79,4 +79,38 @@ html, body {
             text-decoration: underline;
         }
     }
+}
+
+nav ul{
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    list-style: none;
+    background-color: rgb(125, 28, 28);
+    color: white;
+    padding: 1em;
+
+}
+
+nav ul a:hover{
+    border-radius: 12px 12px 12px 12px;
+
+    padding: .5em;
+    background-color: rgb(251, 215, 215);
+    color: maroon;
+}
+
+ul a{
+    text-decoration: none; 
+    color: inherit; 
+}
+
+h1{
+    color: maroon;
+    
+}
+
+img{
+    border: .5em solid maroon;
+    border-radius: 25px 50px;
 }
