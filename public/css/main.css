@@ -114,3 +114,19 @@ img{
     border: .5em solid maroon;
     border-radius: 25px 50px;
 }
+
+.nav-logout-btn {
+    background: none;
+    border: none;
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: inherit;
+    font-family: inherit;
+    padding: 0;
+    margin: 0;
+}
+ 
+.nav-logout-btn:hover {
+    color: #0066cc;
+}

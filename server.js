@@ -3,11 +3,16 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { setupDatabase, testConnection } from './src/models/setup.js';
+import db from './src/models/db.js';
+import session from 'express-session';
+import pgSession from 'connect-pg-simple';
+
 
 // Import route handlers from their new locations
 import indexRoutes from './src/routes/index.js';
 import exploreRoutes from './src/routes/products/index.js';
 import testRoutes from './src/routes/test.js';
+import accountRoutes from './src/routes/accounts/index.js';
 
 // Import global middleware
 import {
@@ -15,7 +20,7 @@ import {
     addTimestamp,
     poweredByHeader,
     measureProcessingTime,
-    validateDisplayMode
+    validateDisplayMode,
 } from './src/middleware/index.js';
 
 
@@ -48,15 +53,44 @@ app.use(express.json());
  
 // Middleware to parse URL-encoded form data (like from a standard HTML form)
 app.use(express.urlencoded({ extended: true }));
+
+app.use((req, res, next) => {
+    res.locals.errors = [];
+    res.locals.messages = [];
+    next();
+});
+
 /**
  * Routes
  */
+
+// Configure PostgreSQL session store
+const PostgresStore = pgSession(session);
+ 
+// Configure session middleware
+app.use(session({
+    store: new PostgresStore({
+        pool: db, // Use your PostgreSQL connection
+        tableName: 'sessions', // Table name for storing sessions
+        createTableIfMissing: true // Creates table if it does not exist
+    }),
+    secret: process.env.SESSION_SECRET || "default-secret-change-in-production",
+    resave: false,
+    saveUninitialized: false,
+    name: "sessionId",
+    cookie: {
+        secure: false, // Set to true in production with HTTPS
+        httpOnly: true, // Prevents client-side access to the cookie
+        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days in milliseconds
+    }
+}));
 
 // Route handlers from imported routers
 app.use('/', indexRoutes);           
 app.use('/products', exploreRoutes); 
 app.use('/test', testRoutes);     
 app.use('/dashboard', dashboardRoutes);
+app.use('/accounts', accountRoutes);
 // Custom product routes
 
 // Manual error test route
@@ -87,10 +121,11 @@ app.use((err, req, res, next) => {
         error: err.message,
         stack: err.stack,
         NODE_ENV,
-        PORT
+        PORT,
     };
     res.status(status).render(`errors/${status === 404 ? '404' : '500'}`, context);
 });
+
 
 /**
  * WebSocket Dev Server (Live Reloading)
