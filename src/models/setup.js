@@ -1,16 +1,8 @@
 import db from './db.js';
 const verbose = process.env.NODE_ENV === 'development';
- 
+
 /**
  * SQL to create the categories table if it doesn't exist.
- * 
- * This table stores product categories with both parent and child relationships.
- * The parent_id field allows us to create hierarchical categories like:
- * - Men's Clothing (parent)
- *   - Shoes (child of Men's Clothing)
- *   - Accessories (child of Men's Clothing)
- * 
- * The show_in_nav field determines which categories appear in the main navigation.
  */
 const createCategoriesTable = `
     CREATE TABLE IF NOT EXISTS categories (
@@ -26,10 +18,6 @@ const createCategoriesTable = `
 
 /**
  * SQL to create the products table if it doesn't exist.
- * 
- * This table stores product information including name, description, price, and image URL.
- * The id field is a serial primary key that auto-increments.
- * All fields except id are required (NOT NULL) to ensure data integrity.
  */
 const createProductsTable = `
     CREATE TABLE IF NOT EXISTS products (
@@ -40,16 +28,42 @@ const createProductsTable = `
         image VARCHAR(500) NOT NULL
     );
 `;
- 
-// Create the products table (add this after categories table creation)
-await db.query(createProductsTable);
-if (verbose) console.log('Products table ready');
 
 /**
- * Initial categories to populate the database.
- * Parent categories (show_in_nav: true) appear in navigation.
- * Child categories are accessible within their parent category pages.
+ * SQL to create the roles table.
  */
+const createRolesTable = `
+CREATE TABLE IF NOT EXISTS roles (
+    id SERIAL PRIMARY KEY,
+    role_name VARCHAR(50) NOT NULL UNIQUE
+);
+`;
+
+/**
+ * SQL to insert default roles.
+ */
+const insertDefaultRoles = `
+INSERT INTO roles (id, role_name) VALUES 
+    (0, 'user'),
+    (1, 'employee'), 
+    (2, 'management')
+ON CONFLICT (id) DO NOTHING;
+`;
+
+/**
+ * SQL to create the users table.
+ */
+const createUsersTable = `
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role_id INTEGER DEFAULT 0 REFERENCES roles(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+`;
+
+// Initial categories
 const initialCategories = [
     {
         name: "Men's Clothing",
@@ -69,36 +83,32 @@ const initialCategories = [
         name: "Footwear",
         slug: "shoes", 
         description: "Men's shoes and footwear",
-        parent_id: 1, // Child of Men's Clothing
+        parent_id: 1,
         show_in_nav: false
     },
     {
         name: "Accessories",
         slug: "accessories",
         description: "Men's accessories and extras",
-        parent_id: 1, // Child of Men's Clothing
+        parent_id: 1,
         show_in_nav: false
     },
     {
         name: "Footwear",
         slug: "womens-shoes", 
         description: "Women's shoes and footwear",
-        parent_id: 2, // Child of Women's Clothing
+        parent_id: 2,
         show_in_nav: false
     },
     {
         name: "Accessories",
         slug: "womens-accessories",
         description: "Women's accessories and extras", 
-        parent_id: 2, // Child of Women's Clothing
+        parent_id: 2,
         show_in_nav: false
     }
 ];
- 
-/**
- * Inserts a category into the database if it doesn't already exist.
- * Uses ON CONFLICT to avoid duplicate entries when script runs multiple times.
- */
+
 const insertCategory = async (category, verbose = true) => {
     const query = `
         INSERT INTO categories (name, slug, description, parent_id, show_in_nav)
@@ -106,36 +116,47 @@ const insertCategory = async (category, verbose = true) => {
         ON CONFLICT (slug) DO NOTHING
         RETURNING id, name, slug;
     `;
- 
     const values = [category.name, category.slug, category.description, category.parent_id, category.show_in_nav];
     const result = await db.query(query, values);
- 
+
     if (result.rows.length > 0 && verbose) {
         console.log(`Created category: ${result.rows[0].name}`);
     } else if (verbose) {
         console.log(`Category already exists, skipping: ${category.name}`);
     }
 };
- 
-/**
- * Sets up the database by creating tables and inserting initial data.
- * This function should be called when the server starts.
- */
+
 const setupDatabase = async () => {
     const verbose = process.env.DISABLE_SQL_LOGGING !== 'true';
- 
+
     try {
         if (verbose) console.log('Setting up database...');
- 
+
         // Create the categories table
         await db.query(createCategoriesTable);
         if (verbose) console.log('Categories table ready');
- 
+
+        // Create the products table
+        await db.query(createProductsTable);
+        if (verbose) console.log('Products table ready');
+
+        // Create the roles table
+        await db.query(createRolesTable);
+        if (verbose) console.log('Roles table ready');
+
+        // Insert default roles
+        await db.query(insertDefaultRoles);
+        if (verbose) console.log('Default roles inserted');
+
+        // Create the users table
+        await db.query(createUsersTable);
+        if (verbose) console.log('Users table ready');
+
         // Insert initial categories
         for (const category of initialCategories) {
             await insertCategory(category, verbose);
         }
- 
+
         if (verbose) console.log('Database setup complete');
         return true;
     } catch (error) {
@@ -143,10 +164,8 @@ const setupDatabase = async () => {
         throw error;
     }
 };
- 
-/**
- * Tests the database connection by executing a simple query.
- */
+
+
 const testConnection = async () => {
     try {
         const result = await db.query('SELECT NOW() as current_time');
@@ -157,5 +176,5 @@ const testConnection = async () => {
         throw error;
     }
 };
- 
+
 export { setupDatabase, testConnection };

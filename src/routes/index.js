@@ -1,13 +1,7 @@
 import { Router } from 'express';
- 
+
 const router = Router();
- 
-/**
- * This file groups together simple, related routes that don't require 
- * complex logic or data processing. These are often static pages or 
- * simple renders without database interaction.
- */
- 
+
 // Sample product data
 const products = [
     {
@@ -25,37 +19,46 @@ const products = [
         image: "https://picsum.photos/id/250/800/600"
     }
 ];
- 
+
 // Middleware to validate display parameter
 const validateDisplayMode = (req, res, next) => {
     const { display } = req.params;
     if (display !== 'grid' && display !== 'details') {
         const error = new Error('Invalid display mode: must be either "grid" or "details".');
-        next(error); // Pass control to the error-handling middleware
+        return next(error); // return here to avoid calling next() twice
     }
-    next(); // Pass control to the next middleware or route
+    next(); // valid mode, continue
 };
- 
+
 // Home page route
 router.get('/', (req, res) => {
     res.render('home', { title: 'Home' });
 });
- 
+
 // About page route  
 router.get('/about', (req, res) => {
     res.render('about', { title: 'About' });
 });
- 
+
 // Default products route (redirects to grid view)
 router.get('/products', (req, res) => {
     res.redirect('/products/grid');
 });
- 
+
 // Products page route with display mode validation
 router.get('/products/:display', validateDisplayMode, (req, res) => {
     const title = "Our Products";
     const { display } = req.params;
     res.render('products', { title, products, display });
 });
- 
+
+// Error handling middleware (must come after all routes)
+router.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).render('error', { 
+        message: err.message, 
+        error: process.env.NODE_ENV === 'development' ? err : {} 
+    });
+});
+
 export default router;

@@ -1,11 +1,11 @@
 import express from 'express';
+import { createUser, authenticateUser, emailExists } from '../../models/accounts/index.js';
 const router = express.Router();
 
 /**
  * Display the login form
  */
 router.get('/login', (req, res) => {
-    // Redirect if already logged in
     if (req.session.isLoggedIn) {
         return res.redirect('/accounts/dashboard');
     }
@@ -16,27 +16,92 @@ router.get('/login', (req, res) => {
 });
 
 /**
- * Process login form submission
+ * Process login form submission with real authentication
  */
-router.post('/login', (req, res) => {
-    const { username, password } = req.body;
+router.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
 
-    // Basic validation
-    if (!username || !password) {
-        req.flash('error', 'Username and password are required');
-        return res.render('accounts/login', {
-            title: 'Login'
-        });
+        if (!email || !password) {
+            req.flash('error', 'Email and password are required');
+            return res.render('accounts/login', { title: 'Login' });
+        }
+
+        const user = await authenticateUser(email, password);
+
+        if (!user) {
+            req.flash('error', 'Invalid email or password');
+            return res.render('accounts/login', { title: 'Login' });
+        }
+
+        req.session.isLoggedIn = true;
+        req.session.user = user;
+        req.session.loginTime = new Date();
+
+        req.flash('success', `Welcome back! You have successfully logged in.`);
+        res.redirect('/accounts/dashboard');
+    } catch (error) {
+        console.error('Login error:', error);
+        req.flash('error', 'An error occurred during login. Please try again.');
+        res.render('accounts/login', { title: 'Login' });
+    }
+});
+
+/**
+ * Display the registration form
+ */
+router.get('/register', (req, res) => {
+    if (req.session.isLoggedIn) {
+        return res.redirect('/accounts/dashboard');
     }
 
-    // Log user in
-    req.session.isLoggedIn = true;
-    req.session.username = username;
-    req.session.loginTime = new Date();
+    res.render('accounts/register', {
+        title: 'Create Account'
+    });
+});
 
-    // Flash welcome message
-    req.flash('success', `Welcome back, ${username}! You have successfully logged in.`);
-    res.redirect('/accounts/dashboard');
+/**
+ * Process registration form submission
+ */
+router.post('/register', async (req, res) => {
+    try {
+        const { email, password, confirmPassword } = req.body;
+        const errors = [];
+
+        if (!email || !email.includes('@')) {
+            errors.push('Valid email address is required');
+        }
+
+        if (!password || password.length < 8) {
+            errors.push('Password must be at least 8 characters long');
+        }
+
+        if (password !== confirmPassword) {
+            errors.push('Passwords do not match');
+        }
+
+        if (email && await emailExists(email)) {
+            errors.push('An account with this email already exists');
+        }
+
+        if (errors.length > 0) {
+            errors.forEach(err => req.flash('error', err));
+            return res.render('accounts/register', {
+                title: 'Create Account'
+            });
+        }
+
+        await createUser({ email, password });
+
+        req.flash('success', 'Account created successfully! Please log in with your new credentials.');
+        res.redirect('/accounts/login');
+    } catch (error) {
+        console.error('Registration error:', error);
+        req.flash('error', 'An error occurred while creating your account. Please try again.');
+        res.render('accounts/register', {
+            title: 'Create Account'
+        });
+    }
 });
 
 /**
@@ -50,7 +115,7 @@ router.get('/dashboard', (req, res) => {
 
     res.render('accounts/dashboard', {
         title: 'Account Dashboard',
-        username: req.session.username,
+        user: req.session.user,
         loginTime: req.session.loginTime
     });
 });
@@ -59,19 +124,21 @@ router.get('/dashboard', (req, res) => {
  * Process logout request
  */
 router.post('/logout', (req, res) => {
-    const username = req.session.username;
-
+    const userEmail = req.session.user?.email;
+ 
     req.session.destroy((err) => {
         if (err) {
             console.error('Error destroying session:', err);
             req.flash('error', 'Logout failed. Please try again.');
             return res.redirect('/accounts/dashboard');
         }
-
+ 
+        // Clear the session cookie
         res.clearCookie('sessionId');
-        req.flash('success', `Goodbye, ${username}! You have been successfully logged out.`);
+ 
+        // Flash success message and redirect to home
+        req.flash('success', `Goodbye! You have been successfully logged out.`);
         res.redirect('/');
     });
 });
-
 export default router;

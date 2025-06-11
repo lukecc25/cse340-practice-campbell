@@ -20,7 +20,6 @@ import {
     addTimestamp,
     poweredByHeader,
     measureProcessingTime,
-    validateDisplayMode,
 } from './src/middleware/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -45,6 +44,7 @@ app.use(addGlobalData);
 app.use(addTimestamp);
 app.use(poweredByHeader);
 app.use(measureProcessingTime);
+
 
 // Initialize res.locals defaults
 app.use((req, res, next) => {
