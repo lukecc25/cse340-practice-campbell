@@ -1,3 +1,4 @@
+import flashMessages from './src/middleware/flash.js';
 import dashboardRoutes from './src/routes/dashboard/index.js';
 import express from 'express';
 import path from 'path';
@@ -6,7 +7,6 @@ import { setupDatabase, testConnection } from './src/models/setup.js';
 import db from './src/models/db.js';
 import session from 'express-session';
 import pgSession from 'connect-pg-simple';
-
 
 // Import route handlers from their new locations
 import indexRoutes from './src/routes/index.js';
@@ -23,7 +23,6 @@ import {
     validateDisplayMode,
 } from './src/middleware/index.js';
 
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const NODE_ENV = process.env.NODE_ENV || 'production';
@@ -35,7 +34,6 @@ const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 // Middleware to parse JSON data in request body
 app.use(express.json());
- 
 // Middleware to parse URL-encoded form data (like from a standard HTML form)
 app.use(express.urlencoded({ extended: true }));
 // View engine setup
@@ -48,12 +46,7 @@ app.use(addTimestamp);
 app.use(poweredByHeader);
 app.use(measureProcessingTime);
 
-// Middleware to parse JSON data in request body
-app.use(express.json());
- 
-// Middleware to parse URL-encoded form data (like from a standard HTML form)
-app.use(express.urlencoded({ extended: true }));
-
+// Initialize res.locals defaults
 app.use((req, res, next) => {
     res.locals.errors = [];
     res.locals.messages = [];
@@ -61,37 +54,39 @@ app.use((req, res, next) => {
 });
 
 /**
- * Routes
+ * Configure PostgreSQL session store
  */
-
-// Configure PostgreSQL session store
 const PostgresStore = pgSession(session);
- 
-// Configure session middleware
+
+// Session middleware - must come before flashMessages
 app.use(session({
     store: new PostgresStore({
-        pool: db, // Use your PostgreSQL connection
-        tableName: 'sessions', // Table name for storing sessions
-        createTableIfMissing: true // Creates table if it does not exist
+        pool: db, // Use your PostgreSQL connection pool
+        tableName: 'sessions',
+        createTableIfMissing: true
     }),
     secret: process.env.SESSION_SECRET || "default-secret-change-in-production",
     resave: false,
     saveUninitialized: false,
     name: "sessionId",
     cookie: {
-        secure: false, // Set to true in production with HTTPS
-        httpOnly: true, // Prevents client-side access to the cookie
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days in milliseconds
+        secure: false, // Set true if using HTTPS in production
+        httpOnly: true,
+        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     }
 }));
 
-// Route handlers from imported routers
-app.use('/', indexRoutes);           
-app.use('/products', exploreRoutes); 
-app.use('/test', testRoutes);     
+// Flash message middleware - after session, before routes
+app.use(flashMessages);
+
+/**
+ * Routes
+ */
+app.use('/', indexRoutes);
+app.use('/products', exploreRoutes);
+app.use('/test', testRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/accounts', accountRoutes);
-// Custom product routes
 
 // Manual error test route
 app.get('/manual-error', (req, res, next) => {
@@ -100,16 +95,20 @@ app.get('/manual-error', (req, res, next) => {
     next(err);
 });
 
-
 /**
  * Error Handling Middleware
  */
 
-// 404 Handler
+// 404 Handler (optional, if you want to handle 404 specifically)
 app.use((req, res, next) => {
-    const err = new Error('Page Not Found');
-    err.status = 404;
-    next(err);
+    res.status(404);
+    const context = {
+        title: 'Page Not Found',
+        error: 'Sorry, the page you requested does not exist.',
+        NODE_ENV,
+        PORT,
+    };
+    res.render('errors/404', context);
 });
 
 // Global error handler
@@ -119,13 +118,12 @@ app.use((err, req, res, next) => {
     const context = {
         title: status === 404 ? 'Page Not Found' : 'Internal Server Error',
         error: err.message,
-        stack: err.stack,
+        stack: NODE_ENV === 'production' ? '' : err.stack,
         NODE_ENV,
         PORT,
     };
     res.status(status).render(`errors/${status === 404 ? '404' : '500'}`, context);
 });
-
 
 /**
  * WebSocket Dev Server (Live Reloading)
